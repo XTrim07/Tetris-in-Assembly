@@ -3,7 +3,7 @@
 # cu secvente escape, ca in decoder.s din A3_MemoryInputs.
 
 .data
-fmt_title:   .asciz "\n=== TETRIS (human, 10x15) ===\n"
+fmt_title:   .asciz "\n=== TETRIS GAME ===\n"
 fmt_top:     .asciz "+--------------------+\n"
 fmt_bar:     .asciz "|"
 fmt_bar_end: .asciz "|\n"
