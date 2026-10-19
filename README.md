@@ -4,7 +4,7 @@ Joc Tetris simplu, pentru un jucator uman, fara nicio parte de AI.
 Urmeaza proiectul Python `Tetris-Research-RL-Framework`, doar modul
 `human` (`human_player.py` + `board.py` + afisarea din `gui.py`).
 
-Locatie: `~/assembly_project/tetris_human/`
+Locatie: `~/assembly_project/Tetris in Assembly/`
 
 ## Compilare si rulare (Ubuntu, ca la celelalte proiecte)
 
@@ -49,6 +49,31 @@ Sageata `^` de sub tabla arata coloana selectata, iar patratelele
 - **`input.s`** — citirea tastelor cu `scanf(" %c")` si aplicarea lor
   pe coloana/rotatia selectata (`handle_key`), plus `clear_screen`
   prin `system("clear")`.
+- **`leaderboard.s`** — leaderboard-ul cu nume si scoruri (vezi sectiunea
+  de jos). Cea mai mare parte a logicii sta aici, ca sa nu incurc
+  restul jocului.
+- **`IMPLEMENTARE.md`** — explicatia detaliata a implementarii
+  leaderboard-ului (in romana): cum am gandit, ce fisier face ce,
+  fluxul complet si restrictiile luate intentionat.
+
+## Leaderboard
+
+La pornire jocul cere un nume de jucator (`Player name:`):
+
+- **Nume nou** — se creeaza un cont cu scor 0, e adaugat in
+  `leaderboard.txt` si apare mesajul `Nice to meet you: <nume>`.
+- **Nume existent** — se incarca contul (mesaj
+  `Good to see you again: <nume>`) si in partea de sus a jocului
+  apare mereu recordul personal: `Player: <nume> | High score: <scor>`.
+- In timpul jocului, sub linia de comenzi, se afiseaza in timp real
+  leaderboard-ul (jucatorul curent e marcat cu `>`). Se actualizeaza
+  la fiecare tasta: daca bati recordul, scorul din lista creste pe loc.
+- Recordul se salveaza automat in `leaderboard.txt` (format text,
+  `nume scor` pe linie) imediat cand e batut, deci nu se pierde nici
+  daca iesi cu `Q` din mijlocul jocului.
+
+Detalii (format fisier, limite, de ce nu e sortata lista) in
+`IMPLEMENTARE.md`.
 
 ## Reguli (la fel ca in Python)
 
@@ -95,3 +120,14 @@ Sageata `^` de sub tabla arata coloana selectata, iar patratelele
    Python foloseste `SPACE` prin evenimente pygame, dar `scanf(" %c")`
    sare peste spatii (whitespace), deci SPACE nu poate fi citit asa.
    Am pastrat si codul pentru SPACE, dar tasta principala e `S`.
+8. **Leaderboard ca fisier text + tablouri fixe.**
+   In loc de format binar sau liste alocate dinamic: `leaderboard.txt`
+   (`nume scor` pe linie) si tablouri fixe pentru 16 jucatori. E usor de
+   scris/citit cu `fprintf`/`sscanf` (ca in `bitmap_format.s`) si codul
+   ramane in stilul simplu al proiectului. Lista nu e sortata dupa scor
+   (ar fi stricat `player_idx` la fiecare salvare), iar numele e un
+   singur cuvant (max 31 caractere, citit cu `scanf("%31s")`).
+9. **Mesajele jocului sunt in engleza** (titlu, scoruri, comenzi,
+   leaderboard, saluturile de la login), ca sa fie lizibil la corectare;
+   comentariile din cod si documentatia (`IMPLEMENTARE.md`, acest
+   README) raman in romana.
