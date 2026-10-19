@@ -7,7 +7,7 @@
 keybuf: .space 8
 
 .data
-fmt_prompt: .asciz "Mutare (a/d/r/s, 1-9/0, q=iesire): "
+fmt_prompt: .asciz "Move (a/d/r/s, 1-9/0, q=quit): "
 fmt_scan:   .asciz " %c"
 clear_cmd:  .asciz "clear"
 

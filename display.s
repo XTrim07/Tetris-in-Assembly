@@ -3,6 +3,7 @@
 # cu secvente escape, ca in decoder.s din A3_MemoryInputs.
 
 .data
+fmt_player:  .asciz "Player: %s | High score: %ld\n"
 fmt_title:   .asciz "\n=== TETRIS GAME ===\n"
 fmt_top:     .asciz "+--------------------+\n"
 fmt_bar:     .asciz "|"
@@ -12,13 +13,16 @@ fmt_arrow:   .asciz "^ "
 fmt_arrow_sp:.asciz "  "
 fmt_nl:      .asciz "\n"
 fmt_nums:    .asciz "  1 2 3 4 5 6 7 8 9 0\n"
-fmt_stats:   .asciz "Scor: %ld | Linii: %ld | Piese: %ld\n"
-fmt_cur:     .asciz "Piesa: %s | Urm: %s | Col: %ld | Rot: %ld | cade pe randul %ld\n"
-fmt_prev_cur:.asciz "Piesa curenta (rot %ld) - asa va fi pusa:\n"
-fmt_prev_nxt:.asciz "Urmatoarea:\n"
-fmt_ctrl:    .asciz "Comenzi: A/D = stanga/dreapta, R = rotire, S = pune, Q = iesire\n"
-fmt_invalid: .asciz "\x1b[31mNu e voie aici! Piesa nu incape la coloana asta.\x1b[0m\n"
-fmt_over:    .asciz "\n*** GAME OVER *** Scor final: %ld\nApasa N pentru joc nou sau Q pentru iesire.\n"
+fmt_stats:   .asciz "Score: %ld | Lines: %ld | Pieces: %ld\n"
+fmt_cur:     .asciz "Piece: %s | Next: %s | Col: %ld | Rot: %ld | lands on row %ld\n"
+fmt_prev_cur:.asciz "Current piece (rot %ld) - like this:\n"
+fmt_prev_nxt:.asciz "Next:\n"
+fmt_ctrl:    .asciz "Controls: A/D = left/right, R = rotate, S = place, Q = quit\n"
+fmt_invalid: .asciz "\x1b[31mNot allowed here! The piece doesn't fit at this column.\x1b[0m\n"
+fmt_lb:      .asciz "  %s - %ld\n"
+fmt_lb_me:   .asciz "> %s - %ld\n"
+fmt_lb_head: .asciz "=== LEADERBOARD ===\n"
+fmt_over:    .asciz "\n*** GAME OVER *** Final score: %ld\nPress N for a new game or Q to quit.\n"
 # patratele colorate (fundal colorat + reset)
 cell_e: .asciz "  "
 cell_1: .asciz "\x1b[106m[]\x1b[0m"       # I - cyan
@@ -246,6 +250,12 @@ draw_board:
     movq $fmt_title, %rdi
     movq $0, %rax
     call printf
+    # nume jucator + scor maxim, sus de tot
+    movq $fmt_player, %rdi
+    movq $player_name, %rsi
+    movq player_high, %rdx
+    movq $0, %rax
+    call printf
     # actualizam randul fantoma
     call update_ghost
     # preview piesa curenta + urmatoarea, deasupra tablei
@@ -373,11 +383,39 @@ dr_msg:
     # afisam mesajul, fara game over
     movq msg_invalid, %rax
     cmpq $1, %rax
-    jne dr_end
+    jne dr_lb
     movq $fmt_invalid, %rdi
     movq $0, %rax
     call printf
-    jmp dr_end
+    jmp dr_lb
+dr_lb:
+    # leaderboard in timp real, jos sub comenzi (> = jucatorul curent)
+    movq $fmt_lb_head, %rdi
+    movq $0, %rax
+    call printf
+    movq $0, %rbx             # i
+dlb_loop:
+    cmpq lb_count, %rbx
+    jge dr_end
+    movq $fmt_lb, %rdi
+    cmpq player_idx, %rbx
+    jne dlb_show
+    movq $fmt_lb_me, %rdi
+dlb_show:
+    # printf(fmt, nume, scor) - arg1 = %rsi, arg2 = %rdx
+    movq %rbx, %rax
+    imulq $32, %rax
+    movq $lb_names, %rsi
+    addq %rax, %rsi
+    movq %rbx, %rax
+    imulq $8, %rax
+    movq $lb_scores, %rdx
+    addq %rax, %rdx
+    movq (%rdx), %rdx
+    movq $0, %rax
+    call printf
+    incq %rbx
+    jmp dlb_loop
 dr_end:
     addq $8, %rsp
     popq %r15

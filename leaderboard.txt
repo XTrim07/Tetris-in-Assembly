@@ -1,0 +1,2 @@
+andrew 100
+bob 0

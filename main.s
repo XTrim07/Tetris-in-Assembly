@@ -15,6 +15,7 @@
 
 .include "pieces.s"
 .include "board.s"
+.include "leaderboard.s"
 .include "display.s"
 .include "input.s"
 
@@ -38,6 +39,10 @@ main:
     call init_board
     call first_pieces
 
+    # leaderboard: citim lista, cerem numele, incarcam contul
+    call lb_load
+    call lb_login
+
 game_loop:
     call clear_screen
     call draw_board
@@ -46,9 +51,11 @@ game_loop:
     call handle_key            # 0 = continua, 1 = a pus, 2 = iesi
     cmpq $2, %rax
     je game_exit
+    call lb_update             # salveaza recordul daca scorul a crescut
     jmp game_loop
 
 game_exit:
+    call lb_update             # salveaza recordul si la iesire
     # epilog
     addq $8, %rsp
     popq %rbx
