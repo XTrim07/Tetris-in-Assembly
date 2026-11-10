@@ -1,6 +1,6 @@
-# display.s - afisare joc in terminal cu culori ANSI
-# In loc de graphics.h (nu exista pe Ubuntu) folosim printf
-# cu secvente escape, ca in decoder.s din A3_MemoryInputs.
+# display.s - render the game in the terminal with ANSI colors
+# Instead of graphics.h (not available on Ubuntu) we use printf
+# with escape sequences, like in decoder.s from A3_MemoryInputs.
 
 .data
 fmt_player:  .asciz "Player: %s | High score: %ld\n"
@@ -23,17 +23,17 @@ fmt_lb:      .asciz "  %s - %ld\n"
 fmt_lb_me:   .asciz "> %s - %ld\n"
 fmt_lb_head: .asciz "=== LEADERBOARD ===\n"
 fmt_over:    .asciz "\n*** GAME OVER *** Final score: %ld\nPress N for a new game or Q to quit.\n"
-# patratele colorate (fundal colorat + reset)
+# colored squares (colored background + reset)
 cell_e: .asciz "  "
 cell_1: .asciz "\x1b[106m[]\x1b[0m"       # I - cyan
-cell_2: .asciz "\x1b[43m[]\x1b[0m"        # O - galben
-cell_3: .asciz "\x1b[45m[]\x1b[0m"        # T - mov
-cell_4: .asciz "\x1b[42m[]\x1b[0m"        # S - verde
-cell_5: .asciz "\x1b[41m[]\x1b[0m"        # Z - rosu
-cell_6: .asciz "\x1b[44m[]\x1b[0m"        # J - albastru
-cell_7: .asciz "\x1b[48;5;208m[]\x1b[0m"  # L - portocaliu
-cell_g: .asciz "\x1b[90m::\x1b[0m"        # fantoma (preview)
-# nume piese
+cell_2: .asciz "\x1b[43m[]\x1b[0m"        # O - yellow
+cell_3: .asciz "\x1b[45m[]\x1b[0m"        # T - purple
+cell_4: .asciz "\x1b[42m[]\x1b[0m"        # S - green
+cell_5: .asciz "\x1b[41m[]\x1b[0m"        # Z - red
+cell_6: .asciz "\x1b[44m[]\x1b[0m"        # J - blue
+cell_7: .asciz "\x1b[48;5;208m[]\x1b[0m"  # L - orange
+cell_g: .asciz "\x1b[90m::\x1b[0m"        # ghost (preview)
+# piece names
 nm_i: .asciz "I"
 nm_o: .asciz "O"
 nm_t: .asciz "T"
@@ -45,14 +45,14 @@ piece_names: .quad nm_i, nm_o, nm_t, nm_s, nm_z, nm_j, nm_l
 
 .text
 
-# piece_name: %rdi = tip -> %rax = pointer la nume
+# piece_name: %rdi = type -> %rax = pointer to name
 .global piece_name
 piece_name:
     movq $piece_names, %rax
     movq (%rax, %rdi, 8), %rax
     ret
 
-# print_cell_val: %rdi = valoare 0-7 -> afiseaza patratul colorat
+# print_cell_val: %rdi = value 0-7 -> prints the colored square
 .global print_cell_val
 print_cell_val:
     pushq %rbp
@@ -113,7 +113,7 @@ pcv_end:
     popq %rbp
     ret
 
-# is_ghost: %rdi = rand, %rsi = col -> %rax = 1 daca e parte din preview
+# is_ghost: %rdi = row, %rsi = col -> %rax = 1 if it is part of the preview
 .global is_ghost
 is_ghost:
     pushq %rbp
@@ -124,19 +124,19 @@ is_ghost:
     subq $8, %rsp
     movq ghost_row, %rax
     cmpq $0, %rax
-    jl igh_no                 # rand negativ = plasare invalida
-    movq %rdi, %r12           # rand
+    jl igh_no                 # negative row = invalid placement
+    movq %rdi, %r12           # row
     movq %rsi, %r13           # col
-    subq %rax, %r12           # rand relativ in piesa
+    subq %rax, %r12           # relative row in piece
     jl igh_no
     movq sel_col, %rax
-    subq %rax, %r13           # col relativ in piesa
+    subq %rax, %r13           # relative col in piece
     jl igh_no
     movq cur_piece, %rdi
     movq sel_rot, %rsi
     movq %r12, %rdx
     movq %r13, %rcx
-    call piece_cell           # 1 daca patratul apartine piesei
+    call piece_cell           # 1 if the cell belongs to the piece
     jmp igh_end
 igh_no:
     movq $0, %rax
@@ -150,8 +150,8 @@ igh_end:
     movq %rbx, %rax
     ret
 
-# draw_one_piece: %rdi = tip, %rsi = rot -> deseneaza forma piesei
-# (se vede exact cum va arata la plasare)
+# draw_one_piece: %rdi = type, %rsi = rot -> draws the piece shape
+# (shows exactly how it will look when placed)
 .global draw_one_piece
 draw_one_piece:
     pushq %rbp
@@ -161,10 +161,10 @@ draw_one_piece:
     pushq %r13
     pushq %r14
     pushq %r15
-    subq $8, %rsp            # aliniere stiva pentru printf
-    movq %rdi, %r14          # tip (ramane aici, registre salvat)
-    movq %rsi, %rbx          # rot (ramane aici, registru salvat)
-    movq $0, %r12            # rand = 0
+    subq $8, %rsp            # align stack for printf
+    movq %rdi, %r14          # type (stays here, saved register)
+    movq %rsi, %rbx          # rot (stays here, saved register)
+    movq $0, %r12            # row = 0
 dop_row:
     movq %r14, %rdi
     movq %rbx, %rsi
@@ -186,7 +186,7 @@ dop_col:
     cmpq $0, %rax
     je dop_empty
     movq %r14, %rdi
-    incq %rdi                # culoare = tip + 1
+    incq %rdi                # color = type + 1
     call print_cell_val
     jmp dop_next_col
 dop_empty:
@@ -212,9 +212,9 @@ dop_done:
     popq %rbp
     ret
 
-# draw_preview: arata piesa curenta (cu rotatia aleasa) + urmatoarea,
-# deasupra tablei. Se redeseneaza la fiecare tasta, deci la R vezi
-# imediat noua pozitie a piesei.
+# draw_preview: shows the current piece (with the chosen rotation) + the next one,
+# above the board. It is redrawn on every key, so on R you see
+# the new piece position immediately.
 .global draw_preview
 draw_preview:
     pushq %rbp
@@ -235,7 +235,7 @@ draw_preview:
     popq %rbp
     ret
 
-# draw_board: deseneaza tot ecranul
+# draw_board: draws the whole screen
 .global draw_board
 draw_board:
     pushq %rbp
@@ -245,26 +245,26 @@ draw_board:
     pushq %r13
     pushq %r14
     pushq %r15
-    subq $8, %rsp            # aliniere stiva pentru printf
-    # titlu
+    subq $8, %rsp            # align stack for printf
+    # title
     movq $fmt_title, %rdi
     movq $0, %rax
     call printf
-    # nume jucator + scor maxim, sus de tot
+    # player name + high score, at the very top
     movq $fmt_player, %rdi
     movq $player_name, %rsi
     movq player_high, %rdx
     movq $0, %rax
     call printf
-    # actualizam randul fantoma
+    # update the ghost row
     call update_ghost
-    # preview piesa curenta + urmatoarea, deasupra tablei
+    # preview current piece + next one, above the board
     call draw_preview
-    # margine sus
+    # top border
     movq $fmt_top, %rdi
     movq $0, %rax
     call printf
-    movq $0, %r12             # rand = 0
+    movq $0, %r12             # row = 0
 dr_row:
     cmpq $15, %r12
     jge dr_rows_done
@@ -277,11 +277,11 @@ dr_col:
     jge dr_row_end
     movq %r12, %rdi
     movq %r13, %rsi
-    call board_get            # valoare tabla in %rax
+    call board_get            # board value in %rax
     movq %rax, %r14
     cmpq $0, %r14
     jne dr_real
-    # gol: verificam fantoma
+    # empty: check the ghost
     movq %r12, %rdi
     movq %r13, %rsi
     call is_ghost
@@ -309,15 +309,15 @@ dr_row_end:
     incq %r12
     jmp dr_row
 dr_rows_done:
-    # margine jos
+    # bottom border
     movq $fmt_top, %rdi
     movq $0, %rax
     call printf
-    # numere coloane
+    # column numbers
     movq $fmt_nums, %rdi
     movq $0, %rax
     call printf
-    # sageata sub coloana selectata
+    # arrow below the selected column
     movq $fmt_sel_l, %rdi
     movq $0, %rax
     call printf
@@ -343,20 +343,20 @@ dr_arr_end:
     movq $fmt_nl, %rdi
     movq $0, %rax
     call printf
-    # statistici
+    # stats
     movq $fmt_stats, %rdi
     movq score, %rsi
     movq lines_cleared, %rdx
     movq pieces_placed, %rcx
     movq $0, %rax
     call printf
-    # piesa curenta + urmatoare + selectie
+    # current piece + next one + selection
     movq cur_piece, %rdi
     call piece_name
-    movq %rax, %rbx           # nume curenta
+    movq %rax, %rbx           # current name
     movq next_piece, %rdi
     call piece_name
-    movq %rax, %r15           # nume urmatoare
+    movq %rax, %r15           # next name
     movq $fmt_cur, %rdi
     movq %rbx, %rsi
     movq %r15, %rdx
@@ -365,7 +365,7 @@ dr_arr_end:
     movq ghost_row, %r9
     movq $0, %rax
     call printf
-    # controale sau game over
+    # controls or game over
     movq game_over, %rax
     cmpq $1, %rax
     je dr_over
@@ -379,8 +379,8 @@ dr_over:
     movq $0, %rax
     call printf
 dr_msg:
-    # daca ultima plasare a fost respinsa (nu incape lateral),
-    # afisam mesajul, fara game over
+    # if the last placement was rejected (does not fit sideways),
+    # we show the message, without game over
     movq msg_invalid, %rax
     cmpq $1, %rax
     jne dr_lb
@@ -389,7 +389,7 @@ dr_msg:
     call printf
     jmp dr_lb
 dr_lb:
-    # leaderboard in timp real, jos sub comenzi (> = jucatorul curent)
+    # real-time leaderboard, below the controls (> = current player)
     movq $fmt_lb_head, %rdi
     movq $0, %rax
     call printf
@@ -402,7 +402,7 @@ dlb_loop:
     jne dlb_show
     movq $fmt_lb_me, %rdi
 dlb_show:
-    # printf(fmt, nume, scor) - arg1 = %rsi, arg2 = %rdx
+    # printf(fmt, name, score) - arg1 = %rsi, arg2 = %rdx
     movq %rbx, %rax
     imulq $32, %rax
     movq $lb_names, %rsi

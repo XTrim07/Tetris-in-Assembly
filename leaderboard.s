@@ -1,19 +1,19 @@
-# leaderboard.s - leaderboard simplu cu nume si scor maxim
-# Fisierul "leaderboard.txt" are cate o linie pentru fiecare jucator:
-#   nume scor
-# La inceput jucatorul isi scrie numele:
-#   - daca numele exista, incarca scorul maxim si joaca de acolo
-#   - daca nu exista, creeaza un cont nou cu scor 0 si il adauga in lista
-# Scorul maxim se actualizeaza automat cand jucatorul face un scor mai mare.
+# leaderboard.s - simple leaderboard with names and high scores
+# The file "leaderboard.txt" has one line for each player:
+#   name score
+# At the start the player types their name:
+#   - if the name exists, load the high score and play from there
+#   - if it does not exist, create a new account with score 0 and add it to the list
+# The high score is updated automatically when the player gets a higher score.
 
 .bss
 .global lb_names, lb_scores, lb_count, player_name, player_idx, player_high
-lb_names:    .space 512        # 16 jucatori x 32 bytes (nume)
-lb_scores:   .space 128        # 16 scoruri x 8 bytes
+lb_names:    .space 512        # 16 players x 32 bytes (name)
+lb_scores:   .space 128        # 16 scores x 8 bytes
 lb_count:    .space 8
-player_name: .space 32         # numele jucatorului curent
-player_idx:  .space 8          # pozitia in leaderboard (-1 = nu exista)
-player_high: .space 8          # scorul maxim al jucatorului curent
+player_name: .space 32         # name of the current player
+player_idx:  .space 8          # position in leaderboard (-1 = does not exist)
+player_high: .space 8          # high score of the current player
 
 .data
 lb_file:    .asciz "leaderboard.txt"
@@ -28,11 +28,11 @@ lb_new:     .asciz "\nNice to meet you: %s (new account, score 0)\n"
 lb_head:    .asciz "\n=== LEADERBOARD ===\n"
 lb_row:     .asciz "%ld. %s - %ld\n"
 lb_none:    .asciz "(gol)\n"
-lb_buf:     .space 64          # o linie din fisier
+lb_buf:     .space 64          # one line from the file
 
 .text
 
-# lb_load: citeste leaderboard.txt in lb_names/lb_scores
+# lb_load: reads leaderboard.txt into lb_names/lb_scores
 .global lb_load
 lb_load:
     pushq %rbp
@@ -40,14 +40,14 @@ lb_load:
     pushq %rbx
     pushq %r12
     pushq %r13
-    subq $8, %rsp             # aliniere stiva pentru call
-    movq $0, %r12             # numar jucatori
+    subq $8, %rsp             # align stack for call
+    movq $0, %r12             # number of players
     movq $lb_file, %rdi
     movq $lb_mode_r, %rsi
     movq $0, %rax
     call fopen
     cmpq $0, %rax
-    je ll_done                # fisierul nu exista = leaderboard gol
+    je ll_done                # file does not exist = empty leaderboard
     movq %rax, %rbx           # FILE*
 ll_loop:
     cmpq $16, %r12
@@ -59,7 +59,7 @@ ll_loop:
     call fgets
     cmpq $0, %rax
     je ll_close
-    # sscanf(linie, "%31s %ld", &lb_names[i*32], &lb_scores[i])
+    # sscanf(line, "%31s %ld", &lb_names[i*32], &lb_scores[i])
     movq %r12, %rax
     imulq $32, %rax
     movq $lb_names, %rdx
@@ -73,7 +73,7 @@ ll_loop:
     movq $0, %rax
     call sscanf
     cmpq $2, %rax
-    jne ll_loop               # linie invalida, trecem mai departe
+    jne ll_loop               # invalid line, move on
     incq %r12
     jmp ll_loop
 ll_close:
@@ -89,7 +89,7 @@ ll_done:
     popq %rbp
     ret
 
-# lb_save: scrie leaderboard-ul inapoi in leaderboard.txt
+# lb_save: writes the leaderboard back to leaderboard.txt
 .global lb_save
 lb_save:
     pushq %rbp
@@ -97,7 +97,7 @@ lb_save:
     pushq %rbx
     pushq %r12
     pushq %r13
-    subq $8, %rsp             # aliniere stiva pentru call
+    subq $8, %rsp             # align stack for call
     movq $lb_file, %rdi
     movq $lb_mode_w, %rsi
     movq $0, %rax
@@ -112,12 +112,12 @@ ls_loop:
     movq %r12, %rax
     imulq $32, %rax
     movq $lb_names, %r13
-    addq %rax, %r13           # nume
+    addq %rax, %r13           # name
     movq %r12, %rax
     imulq $8, %rax
     movq $lb_scores, %rcx
-    addq %rax, %rcx           # &scor
-    # fprintf(file, "%s %ld\n", nume, scor)
+    addq %rax, %rcx           # &score
+    # fprintf(file, "%s %ld\n", name, score)
     movq %rbx, %rdi
     movq $lb_fmt, %rsi
     movq %r13, %rdx
@@ -138,14 +138,14 @@ ls_done:
     popq %rbp
     ret
 
-# lb_find: %rdi = nume -> %rax = pozitia sau -1
+# lb_find: %rdi = name -> %rax = position or -1
 .global lb_find
 lb_find:
     pushq %rbp
     movq %rsp, %rbp
     pushq %rbx
     pushq %r12
-    movq %rdi, %r12           # nume
+    movq %rdi, %r12           # name
     movq $0, %rbx             # i
 lf_loop:
     cmpq lb_count, %rbx
@@ -172,18 +172,18 @@ lf_end:
     popq %rbp
     ret
 
-# lb_add: %rdi = nume -> %rax = pozitia noului cont (sau -1 daca e plin)
+# lb_add: %rdi = name -> %rax = position of the new account (or -1 if full)
 .global lb_add
 lb_add:
     pushq %rbp
     movq %rsp, %rbp
     pushq %rbx
     pushq %r12
-    movq %rdi, %r12           # nume
-    movq lb_count, %rbx       # pozitia noului cont
+    movq %rdi, %r12           # name
+    movq lb_count, %rbx       # position of the new account
     cmpq $16, %rbx
     jge la_full
-    # strcpy(&lb_names[i*32], nume)
+    # strcpy(&lb_names[i*32], name)
     movq %rbx, %rax
     imulq $32, %rax
     movq $lb_names, %rdi
@@ -210,13 +210,13 @@ la_end:
     popq %rbp
     ret
 
-# lb_draw: afiseaza leaderboard-ul
+# lb_draw: displays the leaderboard
 .global lb_draw
 lb_draw:
     pushq %rbp
     movq %rsp, %rbp
     pushq %rbx
-    subq $8, %rsp             # aliniere stiva pentru call
+    subq $8, %rsp             # align stack for call
     movq $lb_head, %rdi
     movq $0, %rax
     call printf
@@ -230,7 +230,7 @@ lb_draw:
 ld_loop:
     cmpq lb_count, %rbx
     jge ld_end
-    # printf("%ld. %s - %ld\n", i+1, nume, scor)
+    # printf("%ld. %s - %ld\n", i+1, name, score)
     movq $lb_row, %rdi
     movq %rbx, %rsi
     incq %rsi
@@ -253,7 +253,7 @@ ld_end:
     popq %rbp
     ret
 
-# lb_login: citeste numele si incarca contul (sau creeaza unul nou)
+# lb_login: reads the name and loads the account (or creates a new one)
 .global lb_login
 lb_login:
     pushq %rbp
@@ -268,12 +268,12 @@ lb_login:
     movq $player_name, %rsi
     movq $0, %rax
     call scanf
-    # caut numele in leaderboard
+    # look for the name in the leaderboard
     movq $player_name, %rdi
     call lb_find
     cmpq $0, %rax
     jl llg_new
-    # numele exista: iau scorul maxim
+    # the name exists: take the high score
     movq %rax, %rbx
     movq %rbx, player_idx
     movq %rbx, %rax
@@ -289,7 +289,7 @@ lb_login:
     call printf
     jmp llg_draw
 llg_new:
-    # nume nou: cont cu scor 0, adaugat in leaderboard
+    # new name: account with score 0, added to the leaderboard
     movq $player_name, %rdi
     call lb_add
     movq %rax, player_idx
@@ -307,19 +307,19 @@ llg_draw:
     popq %rbp
     ret
 
-# lb_update: daca scorul curent e mai mare decat recordul, il salveaza
+# lb_update: if the current score is higher than the record, save it
 .global lb_update
 lb_update:
     pushq %rbp
     movq %rsp, %rbp
     pushq %rbx
-    subq $8, %rsp             # aliniere stiva pentru call
+    subq $8, %rsp             # align stack for call
     movq player_idx, %rbx
     cmpq $0, %rbx
-    jl lu_end                 # cont inexistent (leaderboard plin)
+    jl lu_end                 # account does not exist (leaderboard full)
     movq score, %rax
     cmpq player_high, %rax
-    jle lu_end                # nu e record nou
+    jle lu_end                # not a new record
     movq %rax, player_high
     movq %rbx, %rax
     imulq $8, %rax

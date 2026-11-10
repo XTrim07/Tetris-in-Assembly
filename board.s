@@ -1,10 +1,10 @@
-# board.s - tabla de joc 10 latime x 15 inaltime
-# Logica e ca in board.py: piesa cade instant pe landing_row,
-# liniile pline se sterg, scor 100/300/500/800.
+# board.s - game board 10 wide x 15 high
+# Logic is like in board.py: the piece drops instantly on landing_row,
+# full lines are cleared, score 100/300/500/800.
 
 .bss
 .global board
-board: .space 150          # 15 randuri x 10 coloane, 0 = gol, 1-7 = piesa
+board: .space 150          # 15 rows x 10 columns, 0 = empty, 1-7 = piece
 
 .data
 .global score, lines_cleared, pieces_placed, game_over
@@ -18,26 +18,26 @@ next_piece:     .quad 1
 sel_col:        .quad 0
 sel_rot:        .quad 0
 ghost_row:      .quad 0
-msg_invalid:    .quad 0     # 1 = ultima plasare respinsa (nu incape lateral)
+msg_invalid:    .quad 0     # 1 = last placement rejected (does not fit sideways)
 
 .text
 
-# rand7: -> %rax numar 0-6 (folosim rand din C)
+# rand7: -> %rax number 0-6 (we use rand from C)
 .global rand7
 rand7:
     pushq %rbp
     movq %rsp, %rbp
-    call rand                # rezultat in %eax
+    call rand                # result in %eax
     movl %eax, %ecx
     xorl %edx, %edx
     movl $7, %esi
     movl %ecx, %eax
-    divl %esi                # restul in %edx
+    divl %esi                # remainder in %edx
     movq %rdx, %rax
     popq %rbp
     ret
 
-# init_board: goleste tabla si scorurile
+# init_board: clears the board and the scores
 .global init_board
 init_board:
     pushq %rbp
@@ -65,7 +65,7 @@ ib_done:
     popq %rbp
     ret
 
-# first_pieces: trage piesa curenta si urmatoarea
+# first_pieces: draw the current piece and the next one
 .global first_pieces
 first_pieces:
     pushq %rbp
@@ -77,17 +77,17 @@ first_pieces:
     popq %rbp
     ret
 
-# board_get: %rdi = rand, %rsi = col -> %rax = valoare
+# board_get: %rdi = row, %rsi = col -> %rax = value
 .global board_get
 board_get:
     movq %rdi, %rax
-    imulq $10, %rax          # rand * 10
+    imulq $10, %rax          # row * 10
     addq %rsi, %rax          # + col
     movq $board, %rdx
     movzbq (%rdx, %rax, 1), %rax
     ret
 
-# board_set: %rdi = rand, %rsi = col, %rdx = valoare
+# board_set: %rdi = row, %rsi = col, %rdx = value
 .global board_set
 board_set:
     movq %rdi, %rax
@@ -97,7 +97,7 @@ board_set:
     movb %dl, (%rcx, %rax, 1)
     ret
 
-# collides: %rdi = rand, %rsi = col, %rdx = tip, %rcx = rot -> %rax = 1/0
+# collides: %rdi = row, %rsi = col, %rdx = type, %rcx = rot -> %rax = 1/0
 .global collides
 collides:
     pushq %rbp
@@ -107,20 +107,20 @@ collides:
     pushq %r13
     pushq %r14
     pushq %r15
-    subq $8, %rsp            # aliniere stiva pentru call
-    movq %rdi, %r12          # rand
+    subq $8, %rsp            # align stack for call
+    movq %rdi, %r12          # row
     movq %rsi, %r13          # col
-    movq %rdx, %r14          # tip
+    movq %rdx, %r14          # type
     movq %rcx, %r15          # rot
-    # latime si inaltime piesa
+    # piece width and height
     movq %r14, %rdi
     movq %r15, %rsi
     call piece_w
-    movq %rax, %rbx          # latime in %rbx
+    movq %rax, %rbx          # width in %rbx
     movq %r14, %rdi
     movq %r15, %rsi
-    call piece_h             # inaltime in %rax
-    # verificare margini
+    call piece_h             # height in %rax
+    # check boundaries
     cmpq $0, %r12
     jl col_yes
     cmpq $0, %r13
@@ -133,12 +133,12 @@ collides:
     addq %rbx, %rcx
     cmpq $10, %rcx
     jg col_yes
-    # verificare suprapunere cu piese vechi
-    movq $0, %r10            # i = rand in piesa
+    # check overlap with old pieces
+    movq $0, %r10            # i = row in piece
 col_i:
     cmpq %rax, %r10
-    jge col_no               # am terminat, nu e coliziune
-    movq $0, %r11            # j = col in piesa
+    jge col_no               # finished, no collision
+    movq $0, %r11            # j = col in piece
 col_j:
     cmpq %rbx, %r11
     jge col_next_i
@@ -148,21 +148,21 @@ col_j:
     movq %r11, %rcx
     call piece_cell
     cmpq $0, %rax
-    je col_next_j            # patrat gol in piesa, trecem mai departe
-    # patrat plin: verificam tabla
+    je col_next_j            # empty cell in piece, move on
+    # filled cell: check the board
     movq %r12, %rdi
     addq %r10, %rdi
     movq %r13, %rsi
     addq %r11, %rsi
     call board_get
     cmpq $0, %rax
-    jne col_yes              # tabla ocupata = coliziune
+    jne col_yes              # board occupied = collision
 col_next_j:
     incq %r11
     jmp col_j
 col_next_i:
     incq %r10
-    # trebuie sa re-citim inaltimea (rax s-a stricat)
+    # must re-read the height (rax was clobbered)
     movq %r14, %rdi
     movq %r15, %rsi
     call piece_h
@@ -182,7 +182,7 @@ col_end:
     popq %rbp
     ret
 
-# landing_row: %rdi = col, %rsi = tip, %rdx = rot -> %rax = rand sau -1
+# landing_row: %rdi = col, %rsi = type, %rdx = rot -> %rax = row or -1
 .global landing_row
 landing_row:
     pushq %rbp
@@ -193,9 +193,9 @@ landing_row:
     pushq %r14
     subq $16, %rsp
     movq %rdi, %r12          # col
-    movq %rsi, %r13          # tip
+    movq %rsi, %r13          # type
     movq %rdx, %r14          # rot
-    movq $0, %rbx            # rand curent
+    movq $0, %rbx            # current row
 lr_loop:
     cmpq $15, %rbx
     jge lr_bottom
@@ -205,15 +205,15 @@ lr_loop:
     movq %r14, %rcx
     call collides
     cmpq $1, %rax
-    je lr_found              # am lovit ceva, stam pe randul anterior
+    je lr_found              # hit something, stay on previous row
     incq %rbx
     jmp lr_loop
 lr_found:
     movq %rbx, %rax
-    decq %rax                # rand - 1 (poate fi -1 = invalid)
+    decq %rax                # row - 1 (can be -1 = invalid)
     jmp lr_end
 lr_bottom:
-    # ajunge jos: ultimul rand valid
+    # reached bottom: last valid row
     movq %r13, %rdi
     movq %r14, %rsi
     call piece_h
@@ -229,7 +229,7 @@ lr_end:
     popq %rbp
     ret
 
-# has_valid: -> %rax = 1 daca piesa curenta mai poate fi pusa undeva
+# has_valid: -> %rax = 1 if the current piece can still be placed somewhere
 .global has_valid
 has_valid:
     pushq %rbp
@@ -240,21 +240,21 @@ has_valid:
     pushq %r14
     pushq %r15
     subq $8, %rsp
-    movq cur_piece, %r12     # tip
+    movq cur_piece, %r12     # type
     movq %r12, %rdi
     call num_rots
-    movq %rax, %r13          # numar rotatii
+    movq %rax, %r13          # number of rotations
     movq $0, %rbx            # rot = 0
 hv_rot:
     cmpq %r13, %rbx
     jge hv_no
-    # latime pentru rotatia asta
+    # width for this rotation
     movq %r12, %rdi
     movq %rbx, %rsi
-    call piece_w             # latime in %rax
+    call piece_w             # width in %rax
     movq $10, %r14
-    subq %rax, %r14          # ultima coloana incercata (in %r14, registru salvat)
-    movq $0, %r15            # col = 0 (in %r15, salvat peste call-uri)
+    subq %rax, %r14          # last column tried (in %r14, saved register)
+    movq $0, %r15            # col = 0 (in %r15, saved across calls)
 hv_col:
     cmpq %r14, %r15
     jg hv_next_rot
@@ -263,7 +263,7 @@ hv_col:
     movq %rbx, %rdx
     call landing_row
     cmpq $0, %rax
-    jge hv_yes               # am gasit un loc bun
+    jge hv_yes               # found a good spot
     incq %r15
     jmp hv_col
 hv_next_rot:
@@ -284,7 +284,7 @@ hv_end:
     popq %rbp
     ret
 
-# clear_lines: -> %rax = cate linii s-au sters acum
+# clear_lines: -> %rax = how many lines were cleared now
 .global clear_lines
 clear_lines:
     pushq %rbp
@@ -294,15 +294,15 @@ clear_lines:
     pushq %r13
     pushq %r14
     pushq %r15
-    subq $8, %rsp            # aliniere stiva pentru call
-    movq $14, %r12           # pornim de jos in sus
-    movq $0, %r15            # linii sterse
+    subq $8, %rsp            # align stack for call
+    movq $14, %r12           # start from bottom to top
+    movq $0, %r15            # cleared lines
 cl_row:
     cmpq $0, %r12
     jl cl_done
-    # verificam daca randul e plin
+    # check if the row is full
     movq $0, %r13            # col
-    movq $1, %r14            # presupunem ca e plin
+    movq $1, %r14            # assume it is full
 cl_check:
     cmpq $10, %r13
     jge cl_full_check
@@ -318,8 +318,8 @@ cl_not_full:
 cl_full_check:
     cmpq $1, %r14
     jne cl_next
-    # rand plin: mutam tot ce e deasupra cu o linie in jos
-    movq %r12, %rbx          # rand destinatie
+    # full row: move everything above down by one line
+    movq %r12, %rbx          # destination row
 cl_shift:
     cmpq $0, %rbx
     jle cl_top
@@ -328,9 +328,9 @@ cl_copy:
     cmpq $10, %r13
     jge cl_shift_next
     movq %rbx, %rdi
-    decq %rdi                # rand sursa = destinatie - 1
+    decq %rdi                # source row = destination - 1
     movq %r13, %rsi
-    call board_get           # valoare de sus
+    call board_get           # value from above
     movq %rax, %rdx
     movq %rbx, %rdi
     movq %r13, %rsi
@@ -341,7 +341,7 @@ cl_shift_next:
     decq %rbx
     jmp cl_shift
 cl_top:
-    # prima linie devine goala
+    # first line becomes empty
     movq $0, %r13
 cl_zero:
     cmpq $10, %r13
@@ -354,13 +354,13 @@ cl_zero:
     jmp cl_zero
 cl_erased:
     incq %r15
-    # ramai pe acelasi rand (a cazut altul peste el)
+    # stay on the same row (another one fell onto it)
     jmp cl_row
 cl_next:
     decq %r12
     jmp cl_row
 cl_done:
-    # adunam la total si la scor
+    # add to the total and to the score
     movq lines_cleared, %rax
     addq %r15, %rax
     movq %rax, lines_cleared
@@ -376,7 +376,7 @@ cl_done:
     popq %rbp
     ret
 
-# add_score: %rdi = linii (0-4) -> aduna puncte ca in Python
+# add_score: %rdi = lines (0-4) -> add points like in Python
 .global add_score
 add_score:
     cmpq $0, %rdi
@@ -387,7 +387,7 @@ add_score:
     je as_300
     cmpq $3, %rdi
     je as_500
-    # 4 sau mai multe linii
+    # 4 or more lines
     movq score, %rax
     addq $800, %rax
     movq %rax, score
@@ -409,7 +409,7 @@ as_500:
 as_end:
     ret
 
-# place_piece: %rdi = col, %rsi = rot -> %rax = 1 ok, 0 esec
+# place_piece: %rdi = col, %rsi = rot -> %rax = 1 ok, 0 failure
 .global place_piece
 place_piece:
     pushq %rbp
@@ -422,24 +422,24 @@ place_piece:
     subq $8, %rsp
     movq %rdi, %r12          # col
     movq %rsi, %r13          # rot
-    movq cur_piece, %r14     # tip
-    # unde cade piesa?
+    movq cur_piece, %r14     # type
+    # where does the piece land?
     movq %r12, %rdi
     movq %r14, %rsi
     movq %r13, %rdx
     call landing_row
     cmpq $0, %rax
-    jl pp_fail               # sub tabla = game over
-    movq %rax, %r15          # rand de plasare
-    # scriem piesa pe tabla (valoare = tip + 1)
+    jl pp_fail               # below the board = game over
+    movq %rax, %r15          # placement row
+    # write the piece on the board (value = type + 1)
     movq %r14, %rdi
     movq %r13, %rsi
     call piece_w
-    movq %rax, %rbx          # latime
+    movq %rax, %rbx          # width
     movq %r14, %rdi
     movq %r13, %rsi
     call piece_h
-    # %rax = inaltime, o pastram pe stiva
+    # %rax = height, we keep it on the stack
     movq %rax, (%rsp)
     movq $0, %r10            # i
 pp_i:
@@ -462,7 +462,7 @@ pp_j:
     movq %r12, %rsi
     addq %r11, %rsi
     movq %r14, %rdx
-    incq %rdx                # valoare = tip + 1
+    incq %rdx                # value = type + 1
     call board_set
 pp_next_j:
     incq %r11
@@ -474,8 +474,8 @@ pp_written:
     movq pieces_placed, %rax
     incq %rax
     movq %rax, pieces_placed
-    call clear_lines         # sterge linii + scor
-    # piesa urmatoare devine curenta
+    call clear_lines         # clear lines + score
+    # next piece becomes current
     movq next_piece, %rax
     movq %rax, cur_piece
     call rand7
@@ -483,7 +483,7 @@ pp_written:
     movq $0, %rax
     movq %rax, sel_col
     movq %rax, sel_rot
-    # mai exista vreo mutare? daca nu, game over
+    # is there any move left? if not, game over
     call has_valid
     cmpq $0, %rax
     jne pp_ok
@@ -506,7 +506,7 @@ pp_end:
     popq %rbp
     ret
 
-# update_ghost: calculeaza randul de cadere pentru selectia curenta
+# update_ghost: computes the landing row for the current selection
 .global update_ghost
 update_ghost:
     pushq %rbp

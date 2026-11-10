@@ -1,2 +1,3 @@
 andrew 100
 bob 0
+Alex 0

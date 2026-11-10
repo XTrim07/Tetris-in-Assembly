@@ -1,11 +1,11 @@
-# pieces.s - formele pieselor Tetris
-# Tipuri: 0=I, 1=O, 2=T, 3=S, 4=Z, 5=J, 6=L
-# Acelasi set ca in board.py (PIECES), doar tabla e 10x15.
-# Stil simplu: comparatii cmp/je, fara macrouri complicate.
+# pieces.s - the Tetris piece shapes
+# Types: 0=I, 1=O, 2=T, 3=S, 4=Z, 5=J, 6=L
+# Same set as in board.py (PIECES), only the board is 10x15.
+# Simple style: cmp/je comparisons, no complicated macros.
 
 .text
 
-# num_rots: %rdi = tip piesa -> %rax = numar rotatii
+# num_rots: %rdi = piece type -> %rax = number of rotations
 .global num_rots
 num_rots:
     cmpq $0, %rdi
@@ -16,19 +16,19 @@ num_rots:
     je nr_2
     cmpq $4, %rdi
     je nr_2
-    movq $4, %rax       # T, J, L au 4 rotatii
+    movq $4, %rax       # T, J, L have 4 rotations
     ret
 nr_2:
-    movq $2, %rax       # I, S, Z au 2 rotatii
+    movq $2, %rax       # I, S, Z have 2 rotations
     ret
 nr_1:
-    movq $1, %rax       # O are o singura rotatie
+    movq $1, %rax       # O has a single rotation
     ret
 
-# piece_w: %rdi = tip, %rsi = rotatie -> %rax = latime
+# piece_w: %rdi = type, %rsi = rotation -> %rax = width
 .global piece_w
 piece_w:
-    # piesa I
+    # piece I
     cmpq $0, %rdi
     jne pw_not_i
     cmpq $0, %rsi
@@ -36,13 +36,13 @@ piece_w:
     movq $1, %rax
     ret
 pw_not_i:
-    # piesa O
+    # piece O
     cmpq $1, %rdi
     jne pw_not_o
     movq $2, %rax
     ret
 pw_not_o:
-    # piesa T
+    # piece T
     cmpq $2, %rdi
     jne pw_not_t
     cmpq $0, %rsi
@@ -52,7 +52,7 @@ pw_not_o:
     movq $2, %rax
     ret
 pw_not_t:
-    # piesa S
+    # piece S
     cmpq $3, %rdi
     jne pw_not_s
     cmpq $0, %rsi
@@ -60,7 +60,7 @@ pw_not_t:
     movq $2, %rax
     ret
 pw_not_s:
-    # piesa Z
+    # piece Z
     cmpq $4, %rdi
     jne pw_not_z
     cmpq $0, %rsi
@@ -68,7 +68,7 @@ pw_not_s:
     movq $2, %rax
     ret
 pw_not_z:
-    # piesa J
+    # piece J
     cmpq $5, %rdi
     jne pw_not_j
     cmpq $0, %rsi
@@ -78,7 +78,7 @@ pw_not_z:
     movq $2, %rax
     ret
 pw_not_j:
-    # piesa L (ce a ramas)
+    # piece L (what is left)
     cmpq $0, %rsi
     je pw_3
     cmpq $2, %rsi
@@ -92,10 +92,10 @@ pw_3:
     movq $3, %rax
     ret
 
-# piece_h: %rdi = tip, %rsi = rotatie -> %rax = inaltime
+# piece_h: %rdi = type, %rsi = rotation -> %rax = height
 .global piece_h
 piece_h:
-    # piesa I
+    # piece I
     cmpq $0, %rdi
     jne ph_not_i
     cmpq $0, %rsi
@@ -103,14 +103,14 @@ piece_h:
     movq $4, %rax
     ret
 ph_not_i:
-    # piesa O
+    # piece O
     cmpq $1, %rdi
     jne ph_not_o
     movq $2, %rax
     ret
 ph_not_o:
-    # piesele T, S, Z, J, L: rotatiile 0 si 2 sunt late (h=2),
-    # rotatiile 1 si 3 sunt inguste (h=3)
+    # the pieces T, S, Z, J, L: rotations 0 and 2 are wide (h=2),
+    # rotations 1 and 3 are narrow (h=3)
     cmpq $0, %rsi
     je ph_2
     cmpq $2, %rsi
@@ -124,8 +124,8 @@ ph_2:
     movq $2, %rax
     ret
 
-# piece_cell: %rdi = tip, %rsi = rot, %rdx = rand, %rcx = col -> %rax = 1/0
-# Spune daca patratelul (rand, col) din piesa este plin.
+# piece_cell: %rdi = type, %rsi = rot, %rdx = row, %rcx = col -> %rax = 1/0
+# Tells whether the cell (row, col) in the piece is filled.
 .global piece_cell
 piece_cell:
     cmpq $0, %rdi
@@ -142,11 +142,11 @@ piece_cell:
     je pc_j
     jmp pc_l
 
-# I: r0 = linie orizontala, r1 = linie verticala
+# I: r0 = horizontal line, r1 = vertical line
 pc_i:
     cmpq $0, %rsi
     je pc_i_h
-    # vertical: col 0, rand 0-3
+    # vertical: col 0, row 0-3
     cmpq $0, %rcx
     jne pc_zero
     cmpq $0, %rdx
@@ -156,7 +156,7 @@ pc_i:
     movq $1, %rax
     ret
 pc_i_h:
-    # orizontal: rand 0, col 0-3
+    # horizontal: row 0, col 0-3
     cmpq $0, %rdx
     jne pc_zero
     cmpq $0, %rcx
@@ -166,7 +166,7 @@ pc_i_h:
     movq $1, %rax
     ret
 
-# O: patrat 2x2, mereu plin
+# O: 2x2 square, always filled
 pc_o:
     cmpq $0, %rdx
     jl pc_zero
@@ -179,7 +179,7 @@ pc_o:
     movq $1, %rax
     ret
 
-# T: 4 rotatii
+# T: 4 rotations
 pc_t:
     cmpq $0, %rsi
     je pc_t0
@@ -189,10 +189,10 @@ pc_t:
     je pc_t2
     # r3: [[0,1],[1,1],[0,1]]
     cmpq $1, %rcx
-    je pc_t_col1_ok      # coloana 1 e plina pe toate randurile
+    je pc_t_col1_ok      # column 1 is filled on all rows
     cmpq $0, %rcx
     jne pc_zero
-    cmpq $1, %rdx        # coloana 0 doar la mijloc
+    cmpq $1, %rdx        # column 0 only in the middle
     jne pc_zero
     movq $1, %rax
     ret
@@ -209,24 +209,24 @@ pc_t0:
     je pc_t0_top
     cmpq $1, %rdx
     jne pc_zero
-    cmpq $0, %rcx        # randul 1 e plin tot
+    cmpq $0, %rcx        # row 1 is fully filled
     jl pc_zero
     cmpq $2, %rcx
     jg pc_zero
     movq $1, %rax
     ret
 pc_t0_top:
-    cmpq $1, %rcx        # randul 0 doar mijlocul
+    cmpq $1, %rcx        # row 0 only the middle
     jne pc_zero
     movq $1, %rax
     ret
 pc_t1:
     # [[1,0],[1,1],[1,0]]
     cmpq $0, %rcx
-    je pc_t_col0_ok      # coloana 0 e plina pe toate randurile
+    je pc_t_col0_ok      # column 0 is filled on all rows
     cmpq $1, %rcx
     jne pc_zero
-    cmpq $1, %rdx        # coloana 1 doar la mijloc
+    cmpq $1, %rdx        # column 1 only in the middle
     jne pc_zero
     movq $1, %rax
     ret
@@ -243,19 +243,19 @@ pc_t2:
     je pc_t2_top
     cmpq $1, %rdx
     jne pc_zero
-    cmpq $1, %rcx        # randul 1 doar mijlocul
+    cmpq $1, %rcx        # row 1 only the middle
     jne pc_zero
     movq $1, %rax
     ret
 pc_t2_top:
-    cmpq $0, %rcx        # randul 0 e plin tot
+    cmpq $0, %rcx        # row 0 is fully filled
     jl pc_zero
     cmpq $2, %rcx
     jg pc_zero
     movq $1, %rax
     ret
 
-# S: 2 rotatii
+# S: 2 rotations
 pc_s:
     cmpq $0, %rsi
     je pc_s0
@@ -302,7 +302,7 @@ pc_s0_top:
     movq $1, %rax
     ret
 
-# Z: 2 rotatii
+# Z: 2 rotations
 pc_z:
     cmpq $0, %rsi
     je pc_z0
@@ -349,7 +349,7 @@ pc_z0_top:
     movq $1, %rax
     ret
 
-# J: 4 rotatii
+# J: 4 rotations
 pc_j:
     cmpq $0, %rsi
     je pc_j0
@@ -425,7 +425,7 @@ pc_j2_top:
     movq $1, %rax
     ret
 
-# L: 4 rotatii
+# L: 4 rotations
 pc_l:
     cmpq $0, %rsi
     je pc_l0
